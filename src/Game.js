@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import PengineClient from './PengineClient';
 import Board from './Board';
-import { joinResult } from './util';
+import { joinResult, numberToColor, smallerPow2GreaterOrEqualThan } from './util';
 import MyImage from './/pow.png';
 
 let pengine;
@@ -14,6 +14,7 @@ function Game() {
   const [score, setScore] = useState(0);
   const [path, setPath] = useState([]);
   const [waiting, setWaiting] = useState(false);
+  let scsq = document.getElementById('score-square');
 
   useEffect(() => {
     // This is executed just once, after the first render.
@@ -43,9 +44,27 @@ function Game() {
       return;
     }
     setPath(newPath);
+    if (scsq !== null) {
+      if(newPath.length===0) {
+        scsq.className = "score";
+        scsq.style.backgroundColor = "white";
+        scsq.textContent = score.toString();
+      } else {
+        scsq.className = "squareInPath";
+        scsq.textContent = nextBlock(newPath);
+        scsq.style.backgroundColor = numberToColor(parseInt(scsq.textContent));
+      }
+    }
     console.log(JSON.stringify(newPath));
   }
 
+  function nextBlock(path) {
+    let res = 0;
+    for (let i = 0; i < path.length; i++) {
+      res += grid[path[i][0]*numOfColumns+path[i][1]];
+    }
+    return smallerPow2GreaterOrEqualThan(res);
+  }
   /**
    * Called when the user finished drawing a path in the grid.
    */
@@ -80,6 +99,9 @@ function Game() {
         setWaiting(false);
       }
     });
+    scsq.className = "score";
+    scsq.style.backgroundColor = "white";
+    scsq.textContent = score.toString();
   }
 
   /**
@@ -111,15 +133,14 @@ function Game() {
         setWaiting(false);
       }
     });
-}
-
+  }
   if (grid === null) {
     return null;
   }
   return (
     <div className="game">
       <div className="header">
-        <div className="score">Points: {score}</div>
+        <div id = "score-square" className="score">{score}</div>
         <div className="score"> | </div>
         <div className="score">Power-Up:</div>
         <button className="btn" onClick={boosterEffect}>
