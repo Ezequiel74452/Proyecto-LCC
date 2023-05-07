@@ -121,13 +121,14 @@ function Game() {
   }
 
   function boosterEffect() {
-    let sum = JSON.stringify(0);
+    if (waiting) {
+      return;
+    }
     const gridS = JSON.stringify(grid);
-    const queryS = "boost(" + gridS + "," + numOfColumns + "," + sum + ", RGrids)";
+    const queryS = "boost(" + gridS + "," + numOfColumns + ", RGrids)";
     setWaiting(true);
     pengine.query(queryS, (success, response) => {
       if (success) {
-        setScore(score + sum);
         animateEffect(response['RGrids']);
       } else {
         setWaiting(false);

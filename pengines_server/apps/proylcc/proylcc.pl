@@ -16,23 +16,14 @@ join(Grid, NumOfColumns, Path, RGrids):-
 	removePath(Grid, NumOfColumns, Path, RGrids, 0).
 
 /*
-	setByIndex(Lista, Index, Num, LRes):
-	Busca el índice "Index" en la lista y reemplaza su valor por el de "Num", luego retorna la nueva lista
-	mediante LRes.
+	setByIndex(Grid, Index, Num, Res):
+	Busca el índice "Index" en la grilla y reemplaza su valor por el de "Num", luego retorna la nueva lista
+	mediante Res.
 */
-setByIndex([_|Xs], 0, Num, [Num|Xs]).
-setByIndex([X|Xs], Index, Num, [X|Res]):-
-	Indexaux is Index-1,
-	setByIndex(Xs, Indexaux, Num, Res).
 
-/*
-	searchByIndex(Lista, Index, Res):
-	Busca el índice "Index" en la lista y lo devuelve como Res.
-*/
-searchByIndex([X|_], 0, X).
-searchByIndex([_|Xs], Index, Res):-
-	Indexaux is Index-1,
-	searchByIndex(Xs, Indexaux, Res).
+setByIndex(Grid, Index, Num, Res):-
+	nth0(Index, Grid, _, Tail),
+    nth0(Index, Res, Num, Tail).
 
 /*
 	removePath(Grid, NumOfColumns, Path, RGrids, Sum):
@@ -58,7 +49,7 @@ removePath(Grid, NumOfColumns, Path, RGrids, Sum):-
 	Path = [[X|Y] | Xs],
 	isEmpty(Xs),
 	Index is X*NumOfColumns+Y,
-	searchByIndex(Grid, Index, Aux),
+	nth0(Index, Grid, Aux),
 	Sumaux is Sum+Aux,
 	nextPower(Sumaux, 2, Pot),
 	setByIndex(Grid, Index, Pot, Gridaux),
@@ -78,7 +69,7 @@ removePath(Grid, NumOfColumns, Path, RGrids, Sum):-
 removePath(Grid, NumOfColumns, Path, RGrids, Sum):-
 	Path = [[X|Y] | Xs],
 	Index is X*NumOfColumns+Y,
-	searchByIndex(Grid, Index, Aux),
+	nth0(Index, Grid, Aux),
 	Sumaux is Sum+Aux,
 	setByIndex(Grid, Index, 0, Gridaux),
 	removePath(Gridaux, NumOfColumns, Xs, RGrids, Sumaux).
@@ -166,7 +157,7 @@ bajarCol(Grid, NumOfColumns, Index, Res):-
 */
 bajarCol(Grid, NumOfColumns, Index, Res):-
 	Indexaux is Index-NumOfColumns,
-	searchByIndex(Grid, Indexaux, Aux),
+	nth0(Indexaux, Grid, Aux),
 	setByIndex(Grid, Index, Aux, GridN),
 	bajarCol(GridN, NumOfColumns, Indexaux, Res).
 
@@ -185,146 +176,243 @@ insertarNuevos(Grid, Index, Res):-
 	Indexaux is Index+1,
 	insertarNuevos(Grid, Indexaux, Res).
 
-boost(Grid, NumOfColumns, _Sum, _RGrids):-
-	split_every(NumOfColumns, Grid, _Filas).
-	%boostAux(Grid, NumOfColumns, Sum, 0, RGrids).
+boost(Grid, NumOfColumns, RGrids):-
+	booster(Grid, NumOfColumns, 0, [], RGridsAux, []), 		% Llamo a booster
+	RGrids = RGridsAux.
 
-split_every(_, [], []).
-split_every(N, L, [Fila|Filas]) :-
-    length(Fila, N),
-    append(Fila, Resto, L),
-    split_every(N, Resto, Filas).
+borrar(Grid, [], _, Grid, List, List).
 
+borrar(Grid, [X|Ys], Tam, Res, List, ListR):-
+	isEmpty(Ys),
+	nth0(X, Grid, Aux),							% Tomo su valor
+	Sumaux is Aux*Tam,
+	nextPower(Sumaux, 2, Pot),
+	concatenar_listas([X, Pot], List, ListR),
+	setByIndex(Grid, X, 0, Res).				% Añado el bloque final
+
+borrar(Grid, [X|Ys], Tam, Res, List, ListR):-				% Si hay más adyacentes
+	setByIndex(Grid, X, 0, GridAux),			% Setteo en 0 y paso al siguiente.
+	borrar(GridAux, Ys, Tam, Res, List, ListR).
+
+concatenar_listas([X,Y], [], [[X,Y]]).
+concatenar_listas([X,Y], L, [[X,Y]|L]):- 
+	\+ isEmpty(L).
+concatenar_listas([X1,Y1|T1], [H2|T2], [[X1,Y1]|Res]):-
+	concatenar_listas(T1, [H2|T2], Res).
+
+booster(Grid, NumOfColumns, 40, _, [Res, Xs, Ys], List):-
+	insertList(Grid, List, Res),
+	bajar(Res, NumOfColumns, 0, Xs),
+	insertarNuevos(Xs, 0, Ys).
+
+booster(Grid, NumOfColumns, Index, NoVisit, GridR, List):-
+	getAdjacent(Grid, NumOfColumns, Index, NoVisitAux),			% Tomo los adyacentes de index
+	length(NoVisitAux, L),										% Tomo la cantidad de adyacentes
+	borrar(Grid, NoVisitAux, L, Grid1, List, ListR),							% Actualizo la grilla
+	append(NoVisit, NoVisitAux, Res),							% Junto las listas de adyacentes
+	sort(Res, Sorted),											% Organizo la lista de adyacentes
+	Indexaux is Index+1,										% Paso al siguiente
+	\+ member(Indexaux, Sorted),								% Si no está en la lista de adyacentes visitados
+	booster(Grid1, NumOfColumns, Indexaux, Sorted, GridR, ListR);		% Llamada recursiva a booster
+	getAdjacent(Grid, NumOfColumns, Index, NoVisitAux),			% Si está en la lista de adyacentes visitados
+	length(NoVisitAux, L),										% Tomo la cantidad de adyacentes
+	borrar(Grid, NoVisitAux, L, Grid1, List, ListR),							% Actualizo la grilla
+	append(NoVisit, NoVisitAux, Res),							% Vuelvo a repetir todo
+	sort(Res, Sorted),
+	Indexaux is Index+1,
+	booster2(Grid1, NumOfColumns, Indexaux, Sorted, GridR, ListR).		% Y llamo a booster2
+
+booster2(Grid, NumOfColumns, 40, _, [Res, Xs, Ys], List):-
+	insertList(Grid, List, Res),
+	bajar(Res, NumOfColumns, 0, Xs),
+	insertarNuevos(Xs, 0, Ys).
+
+booster2(Grid, NumOfColumns, Index, Sorted, GridR, List):-
+	Indexaux is Index+1,
+	\+ member(Indexaux, Sorted),						% Si no se visitó, llamo a booster
+	booster(Grid, NumOfColumns, Indexaux, Sorted, GridR, List);
+	Indexaux is Index+1,
+	booster2(Grid, NumOfColumns, Indexaux, Sorted, GridR, List).		% Si se visitó, llamada recursiva a booster 2.
+
+insertList(Grid, [], Grid).
+
+insertList(Grid, [[X,Y]|Xs], Res):-
+	setByIndex(Grid, X, Y, Aux),
+	insertList(Aux, Xs, Res).
+
+getAdjacent(Grid, NumOfColumns, Index, AdjacentList):-
+	tieneAdy(Grid, NumOfColumns, Index, AdjacentIndexes),
+	getAdjacentList(Grid, NumOfColumns, AdjacentIndexes, [], AdjacentListUn),
+	sort(AdjacentListUn, AdjacentList).
+
+getAdjacentList(_, _, [], AdjacentList, AdjacentList).
+getAdjacentList(Grid, NumOfColumns, [Index|Rest], Acc, AdjacentList):-
+	member(Index, Acc),
+	getAdjacentList(Grid, NumOfColumns, Rest, Acc, AdjacentList).
+
+getAdjacentList(Grid, NumOfColumns, [Index|Rest], Acc, AdjacentList):-
+	\+ member(Index, Acc),
+	tieneAdy(Grid, NumOfColumns, Index, AdjacentIndexes),
+	append(Rest, AdjacentIndexes, NewList),
+	getAdjacentList(Grid, NumOfColumns, NewList, [Index|Acc], AdjacentList).
 /*
-boostAux(Grid, NumOfColumns, Sum, Index, RGrids, [[X1|Xs]|Ys]):-
-	searchByIndex(Grid, Index, X),
-	Indexaux = Index+1,
-	(Indexaux mod NumOfColumns)>(Index mod NumOfColumns),
-	searchByIndex(Grid, Indexaux, Y),
-	X =:= Y,
-	boostAux(Grid, NumOfColumns, Sum, Indexaux, RGrids).
-
-boostAux(Grid, NumOfColumns, Sum, Index, RGrids):-
-	searchByIndex(Grid, Index, X),
-	Indexaux = Index+1.
-
-tieneAdy(Grid, NumOfColumns, 0):-
-	searchByIndex(Grid, 0, X),
-	right(Grid, NumOfColumns, 0, X);
-	searchByIndex(Grid, 0, X),
-	bottom(Grid, NumOfColumns, 0, X);
-	searchByIndex(Grid, 0, X),
-	bottomRight(Grid, NumOfColumns, 0, X).
-
-tieneAdy(Grid, NumOfColumns, 5):-
-	searchByIndex(Grid, 5, X),
-	left(Grid, NumOfColumns, 5, X);
-	searchByIndex(Grid, 5, X),
-	bottomLeft(Grid, NumOfColumns, 5, X);
-	searchByIndex(Grid, 5, X),
-	bottom(Grid, NumOfColumns, 5, X).
-
-tieneAdy(Grid, NumOfColumns, Index):-
-	Index<5,
-	Index>0,
-	searchByIndex(Grid, Index, X),
-	adyPrimeraFila(Grid, NumOfColumns, Index, X).
-
-adyEsquina1(Grid, NumOfColumns, Index, X):-
-	right(Grid, NumOfColumns, Index, X);
-	bottom(Grid, NumOfColumns, Index, X);
-	bottomRight(Grid, NumOfColumns, Index, X).
-
-adyEsquina2(Grid, NumOfColumns, Index, X):-
-	left(Grid, NumOfColumns, Index, X);
-	bottom(Grid, NumOfColumns, Index, X);
-	bottomLeft(Grid, NumOfColumns, Index, X).
-
-adyEsquina3(Grid, NumOfColumns, Index, X):-
-	top(Grid, NumOfColumns, Index, X);
-	topRight(Grid, NumOfColumns, Index, X);
-	right(Grid, NumOfColumns, Index, X).
-
-adyEsquina4(Grid, NumOfColumns, Index, X):-
-	top(Grid, NumOfColumns, Index, X);
-	topLeft(Grid, NumOfColumns, Index, X);
-	left(Grid, NumOfColumns, Index, X).
-
-adyPrimeraColumna(Grid, NumOfColumns, Index, X):-
-	top(Grid, NumOfColumns, Index, X);
-	topRight(Grid, NumOfColumns, Index, X);
-	right(Grid, NumOfColumns, Index, X);
-	bottom(Grid, NumOfColumns, Index, X);
-	bottomRight(Grid, NumOfColumns, Index, X).
-
-adyUltimaColumna(Grid, NumOfColumns, Index, X):-
-	top(Grid, NumOfColumns, Index, X);
-	topLeft(Grid, NumOfColumns, Index, X);
-	left(Grid, NumOfColumns, Index, X);
-	bottom(Grid, NumOfColumns, Index, X);
-	bottomLeft(Grid, NumOfColumns, Index, X).
-
-adyUltimaFila(Grid, NumOfColumns, Index, X):-
-	topLeft(Grid, NumOfColumns, Index, X);
-	top(Grid, NumOfColumns, Index, X);
-	topRight(Grid, NumOfColumns, Index, X);
-	left(Grid, NumOfColumns, Index, X);
-	right(Grid, NumOfColumns, Index, X).
-
-adyPrimeraFila(Grid, NumOfColumns, Index, X):-
-	left(Grid, NumOfColumns, Index, X);
-	right(Grid, NumOfColumns, Index, X);
-	bottomLeft(Grid, NumOfColumns, Index, X);
-	bottom(Grid, NumOfColumns, Index, X);
-	bottomRight(Grid, NumOfColumns, Index, X).
-
-adyNormal(Grid, NumOfColumns, Index, X):-
-	topLeft(Grid, NumOfColumns, Index, X);
-	top(Grid, NumOfColumns, Index, X);
-	topRight(Grid, NumOfColumns, Index, X);
-	left(Grid, NumOfColumns, Index, X);
-	right(Grid, NumOfColumns, Index, X);
-	bottomLeft(Grid, NumOfColumns, Index, X);
-	bottom(Grid, NumOfColumns, Index, X);
-	bottomRight(Grid, NumOfColumns, Index, X).
-
-topLeft(Grid, NumOfColumns, Index, Elem):-
-	IndexTL is Index-NumOfColumns-1,
-	searchByIndex(Grid, IndexTL, TL),
-	Elem =:= TL.
-
-top(Grid, NumOfColumns, Index, Elem):-
-	IndexT is Index-NumOfColumns,
-	searchByIndex(Grid, IndexT, Top),
-	Elem =:= Top.
-
-topRight(Grid, NumOfColumns, Index, Elem):-
-	IndexTR is Index-NumOfColumns+1,
-	searchByIndex(Grid, IndexTR, TR),
-	Elem =:= TR.
-
-left(Grid, NumOfColumns, Index, Elem):-
-	IndexL is Index-1,
-	searchByIndex(Grid, IndexL, Left),
-	Elem =:= Left.
-
-right(Grid, NumOfColumns, Index, Elem):-
-	IndexR is Index+1,
-	searchByIndex(Grid, IndexR, Right),
-	Elem =:= Right.
-
-bottomLeft(Grid, NumOfColumns, Index, Elem):-
-	IndexBL is Index+NumOfColumns-1,
-	searchByIndex(Grid, IndexBL, BL),
-	Elem =:= BL.
-
-bottom(Grid, NumOfColumns, Index, Elem):-
-	IndexB is Index+NumOfColumns,
-	searchByIndex(Grid, IndexB, Bottom),
-	Elem =:= Bottom.
-
-bottomRight(Grid, NumOfColumns, Index, Elem):-
-	IndexBR is Index+NumOfColumns+1,
-	searchByIndex(Grid, IndexBR, BR),
-	Elem =:= BR.
+obtenerAdyacentesDeAdy(Grid, NumOfColumns, [Index|Resto], Res):-
+    adyacentesDePosiciones(Grid, NumOfColumns, [Index|Resto], AdyList),
+    list_to_set(AdyList, UniqueAdyList),
+    exclude(member(PosList), UniqueAdyList, Res),
+	obtenerAdyacentesDeAdy(Grid, NumOfColumns, Resto, Res).
 */
+tieneAdy(Grid, NumOfColumns, 0, Res):-
+	adyEsquina1(Grid, NumOfColumns, 0, Res).
+
+tieneAdy(Grid, NumOfColumns, 4, Res):-
+	adyEsquina2(Grid, NumOfColumns, 4, Res).
+
+tieneAdy(Grid, NumOfColumns, 35, Res):-
+	adyEsquina3(Grid, NumOfColumns, 35, Res).
+
+tieneAdy(Grid, NumOfColumns, 39, Res):-
+	adyEsquina4(Grid, NumOfColumns, 39, Res).
+
+tieneAdy(Grid, NumOfColumns, Index, Res):-
+	Index<NumOfColumns,
+	adyPrimeraFila(Grid, NumOfColumns, Index, Res).
+
+tieneAdy(Grid, NumOfColumns, Index, Res):-
+	Index>35,
+	Index<39,
+	adyUltimaFila(Grid, NumOfColumns, Index, Res).
+
+tieneAdy(Grid, NumOfColumns, Index, Res):-
+	Index mod NumOfColumns =:= 0,
+	adyPrimeraColumna(Grid, NumOfColumns, Index, Res).
+
+tieneAdy(Grid, NumOfColumns, Index, Res):-
+	Index mod NumOfColumns =:= 4,
+	adyUltimaColumna(Grid, NumOfColumns, Index, Res).
+
+tieneAdy(Grid, NumOfColumns, Index, Res):-
+	adyNormal(Grid, NumOfColumns, Index, Res).
+
+adyEsquina1(Grid, NumOfColumns, Index, Res):-
+	findall(Valor, (right(Grid, NumOfColumns, Index, Valor);
+					bottom(Grid, NumOfColumns, Index, Valor);
+					bottomRight(Grid, NumOfColumns, Index, Valor)), Valores),
+	Res = Valores.
+
+adyEsquina2(Grid, NumOfColumns, Index, Res):-
+	findall(Valor, (left(Grid, NumOfColumns, Index, Valor);
+					bottom(Grid, NumOfColumns, Index, Valor);
+					bottomLeft(Grid, NumOfColumns, Index, Valor)), Valores),
+	Res = Valores.
+
+adyEsquina3(Grid, NumOfColumns, Index, Res):-
+	findall(Valor, (top(Grid, NumOfColumns, Index, Valor);
+					topRight(Grid, NumOfColumns, Index, Valor);
+					right(Grid, NumOfColumns, Index, Valor)), Valores),
+	Res = Valores.
+
+adyEsquina4(Grid, NumOfColumns, Index, Res):-
+	findall(Valor, (top(Grid, NumOfColumns, Index, Valor);
+					topLeft(Grid, NumOfColumns, Index, Valor);
+					left(Grid, NumOfColumns, Index, Valor)), Valores),
+	Res = Valores.
+
+adyPrimeraColumna(Grid, NumOfColumns, Index, Res):-
+	findall(Valor, (top(Grid, NumOfColumns, Index, Valor);
+					topRight(Grid, NumOfColumns, Index, Valor);
+					right(Grid, NumOfColumns, Index, Valor);
+					bottom(Grid, NumOfColumns, Index, Valor);
+					bottomRight(Grid, NumOfColumns, Index, Valor)), Valores),
+	Res = Valores.
+
+adyUltimaColumna(Grid, NumOfColumns, Index, Res):-
+	findall(Valor, (top(Grid, NumOfColumns, Index, Valor);
+					topLeft(Grid, NumOfColumns, Index, Valor);
+					left(Grid, NumOfColumns, Index, Valor);
+					bottom(Grid, NumOfColumns, Index, Valor);
+					bottomLeft(Grid, NumOfColumns, Index, Valor)), Valores),
+	Res = Valores.
+
+adyUltimaFila(Grid, NumOfColumns, Index, Res):-
+	findall(Valor, (topLeft(Grid, NumOfColumns, Index, Valor);
+					top(Grid, NumOfColumns, Index, Valor);
+					topRight(Grid, NumOfColumns, Index, Valor);
+					left(Grid, NumOfColumns, Index, Valor);
+					right(Grid, NumOfColumns, Index, Valor)), Valores),
+	Res = Valores.
+
+adyPrimeraFila(Grid, NumOfColumns, Index, Res):-
+	findall(Valor, (left(Grid, NumOfColumns, Index, Valor);
+					right(Grid, NumOfColumns, Index, Valor);
+					bottomLeft(Grid, NumOfColumns, Index, Valor);
+					bottom(Grid, NumOfColumns, Index, Valor);
+					bottomRight(Grid, NumOfColumns, Index, Valor)), Valores),
+	Res = Valores.
+
+adyNormal(Grid, NumOfColumns, Index, Res):-
+	findall(Valor, (topLeft(Grid, NumOfColumns, Index, Valor);
+                    top(Grid, NumOfColumns, Index, Valor);
+                    topRight(Grid, NumOfColumns, Index, Valor);
+                    left(Grid, NumOfColumns, Index, Valor);
+                    right(Grid, NumOfColumns, Index, Valor);
+                    bottomLeft(Grid, NumOfColumns, Index, Valor);
+                    bottom(Grid, NumOfColumns, Index, Valor);
+                    bottomRight(Grid, NumOfColumns, Index, Valor)), Valores),
+    Res = Valores.
+
+topLeft(Grid, NumOfColumns, Index, IndexRes):-
+	IndexTL is Index-NumOfColumns-1,
+	nth0(Index, Grid, Elem),
+	nth0(IndexTL, Grid, TL),
+	Elem =:= TL,
+	IndexRes = IndexTL.
+
+top(Grid, NumOfColumns, Index, IndexRes):-
+	IndexT is Index-NumOfColumns,
+	nth0(Index, Grid, Elem),
+	nth0(IndexT, Grid, Top),
+	Elem =:= Top,
+	IndexRes = IndexT.
+
+topRight(Grid, NumOfColumns, Index, IndexRes):-
+	IndexTR is Index-NumOfColumns+1,
+	nth0(Index, Grid, Elem),
+	nth0(IndexTR, Grid, TR),
+	Elem =:= TR,
+	IndexRes = IndexTR.
+
+left(Grid, _, Index, IndexRes):-
+	IndexL is Index-1,
+	nth0(Index, Grid, Elem),
+	nth0(IndexL, Grid, Left),
+	Elem =:= Left,
+	IndexRes = IndexL.
+
+right(Grid, _, Index, IndexRes):-
+	IndexR is Index+1,
+	nth0(Index, Grid, Elem),
+	nth0(IndexR, Grid, Right),
+	Elem =:= Right,
+	IndexRes = IndexR.
+
+bottomLeft(Grid, NumOfColumns, Index, IndexRes):-
+	IndexBL is Index+NumOfColumns-1,
+	nth0(Index, Grid, Elem),
+	nth0(IndexBL, Grid, BL),
+	Elem =:= BL,
+	IndexRes = IndexBL.
+
+bottom(Grid, NumOfColumns, Index, IndexRes):-
+	IndexB is Index+NumOfColumns,
+	nth0(Index, Grid, Elem),
+	nth0(IndexB, Grid, Bottom),
+	Elem =:= Bottom,
+	IndexRes = IndexB.
+
+bottomRight(Grid, NumOfColumns, Index, IndexRes):-
+	IndexBR is Index+NumOfColumns+1,
+	nth0(Index, Grid, Elem),
+	nth0(IndexBR, Grid, BR),
+	Elem =:= BR,	
+	IndexRes = IndexBR.
