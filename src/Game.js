@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import PengineClient from './PengineClient';
 import Board from './Board';
 import { joinResult, numberToColor, smallerPow2GreaterOrEqualThan } from './util';
-import MyImage from './/pow.png';
+import MyImagePow from './/pow.png';
+import MyImageExc from './/exclam.png';
+import MyImageMaxAdy from './/maxady.png';
 
 let pengine;
 
@@ -156,9 +158,19 @@ function Game() {
 			<div className="header">
 				<div id = "score-square" className="score">{score}</div>
 				<div className="score"> | </div>
-				<div className="score">Power-Up:</div>
+				<div className="score">Colapsar iguales:</div>
 				<button className="btn" onClick={boosterEffect}>
-					<img src={MyImage} alt="buttonpng" border="0" height={30}/>
+					<img src={MyImagePow} alt="buttonpng" border="0" height={30}/>
+				</button>
+				<div className="score" style={{paddingLeft: 15}}> | </div>
+				<div className="score">Movida máxima:</div>
+				<button className="btn" onClick={boosterEffect}>
+					<img src={MyImageExc} alt="buttonpng" border="0" height={30}/>
+				</button>
+				<div className="score" style={{paddingLeft: 15}}> | </div>
+				<div className="score">Máximo adyacente:</div>
+				<button className="btn" onClick={boosterEffect}>
+					<img src={MyImageMaxAdy} alt="buttonpng" border="0" height={30}/>
 				</button>
 			</div>
 			<Board
